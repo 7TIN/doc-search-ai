@@ -1,57 +1,42 @@
-// import { Toaster } from "sonner";
-// import { TooltipProvider } from "@/components/ui/tooltip";
-// import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// import {
-//   createRootRoute,
-//   createRoute,
-//   createRouter,
-//   RouterProvider,
-// } from "@tanstack/react-router";
-// import Home from "./pages/Home";
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+  Outlet,
+} from "@tanstack/react-router";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 
-// const queryClient = new QueryClient();
+import Home from "./pages/Home";
 
-// // Define root route
-// const rootRoute = createRootRoute({
-//   component: () => (
-//     <QueryClientProvider client={queryClient}>
-//       <TooltipProvider>
-//         <Toaster richColors position="top-right" />
-//         <RouterProvider router={router} />
-//       </TooltipProvider>
-//     </QueryClientProvider>
-//   ),
-// });
+const queryClient = new QueryClient();
 
-// // Define child routes
-// const indexRoute = createRoute({
-//   getParentRoute: () => rootRoute,
-//   path: "/",
-//   component: Home,
-// });
+// Root layout route
+const rootRoute = createRootRoute({
+  component: () => (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster richColors position="bottom-right" />
+        <Outlet />
+      </TooltipProvider>
+    </QueryClientProvider>
+  ),
+});
 
-// // const notFoundRoute = createRoute({
-// //   getParentRoute: () => rootRoute,
-// //   path: "*",
-// //   component: NotFound,
-// // });
+// Your actual page
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: Home,
+});
 
-// // Build route tree
-// const routeTree = rootRoute.addChildren([indexRoute]);
+const routeTree = rootRoute.addChildren([indexRoute]);
 
-// // Create router
-// const router = createRouter({ routeTree });
-
-// export default function App() {
-//   return <RouterProvider router={router} />;
-// }
-
+const router = createRouter({ routeTree });
 
 export default function App() {
-  return (
-    <div>
-      Hello
-    </div>
-  )
+  return <RouterProvider router={router} />;
 }

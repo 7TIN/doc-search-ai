@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Command,
   CommandEmpty,
@@ -6,36 +6,36 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-//   CommandSeparator,
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import {
-  Search,
-  Sparkles,
-  FileText,
-  ArrowRight,
-  Clock,
-  Book,
-  Zap,
-  Download,
-  Settings,
-  Database,
-  Link,
-  Filter,
-  Edit,
-  Shield,
-  Lock,
-  GitBranch,
-  Cloud,
-  CheckCircle,
-  Code,
-  Terminal,
-  AlertTriangle,
-  CornerDownLeft,
-  Send,
-  ChevronRight,
-} from "lucide-react";
 import { docsData, recentSearches } from "@/data/docs-data";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Book,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Cloud,
+  Code,
+  CornerDownLeft,
+  Database,
+  Download,
+  Edit,
+  FileText,
+  Filter,
+  GitBranch,
+  Link,
+  Lock,
+  Search,
+  Send,
+  Settings,
+  Shield,
+  Sparkles,
+  Terminal,
+  Zap,
+} from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
   book: <Book className="h-4 w-4" />,
@@ -58,6 +58,11 @@ const iconMap: Record<string, React.ReactNode> = {
   "file-text": <FileText className="h-4 w-4" />,
 };
 
+interface ChatMessage {
+  role: "user" | "ai";
+  content: string;
+}
+
 interface SearchCommandProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -66,37 +71,83 @@ interface SearchCommandProps {
 const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"search" | "ai">("search");
-  const [aiResponse, setAiResponse] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const resetAiChat = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setChatMessages([]);
+    setIsAiTyping(false);
+    setAiInput("");
+  }, []);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
       setMode("search");
-      setAiResponse("");
-      setIsAiTyping(false);
+      resetAiChat();
     }
-  }, [open]);
+  }, [open, resetAiChat]);
 
-  const handleAskAI = useCallback(() => {
-    setMode("ai");
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, isAiTyping]);
+
+  const sendAiMessage = useCallback((message: string) => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
+
+    setChatMessages((prev) => [...prev, { role: "user", content: trimmedMessage }]);
+    setAiInput("");
     setIsAiTyping(true);
-    setAiResponse("");
 
-    const response = `Based on your query "${query || "documentation"}", here's what I found:\n\nYou can get started by checking our **Quick Start Guide** which walks you through the initial setup. For more advanced topics, the **Core Concepts** section covers data modeling, relations, and queries in detail.\n\nWould you like me to explain any specific topic further?`;
+    const response = `Based on your query "${trimmedMessage}", here's what I found:\n\nYou can get started by checking our **Quick Start Guide** which walks you through the initial setup. For more advanced topics, the **Core Concepts** section covers data modeling, relations, and queries in detail.\n\nWould you like me to explain any specific topic further?`;
 
     let i = 0;
-    const interval = setInterval(() => {
-      setAiResponse(response.slice(0, i + 1));
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    intervalRef.current = setInterval(() => {
       i++;
       if (i >= response.length) {
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setChatMessages((prev) => [...prev, { role: "ai", content: response }]);
         setIsAiTyping(false);
       }
     }, 12);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [query]);
+  const handleAskAI = useCallback(() => {
+    const messageToSend = query.trim();
+    resetAiChat();
+    setMode("ai");
+    setQuery("");
+    if (messageToSend) {
+      // Delay slightly so mode switch renders first
+      window.setTimeout(() => sendAiMessage(messageToSend), 50);
+    }
+  }, [query, resetAiChat, sendAiMessage]);
+
+  const handleBackToSearch = useCallback(() => {
+    resetAiChat();
+    setMode("search");
+  }, [resetAiChat]);
 
   const groupedResults = docsData.reduce((acc, item) => {
     if (!acc[item.section]) acc[item.section] = [];
@@ -106,21 +157,30 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="search-dialog-content overflow-hidden p-0 gap-0 max-w-[640px] rounded-xl border border-border bg-background shadow-2xl top-[20%] translate-y-0">
+      <DialogContent className="search-dialog-content overflow-hidden p-0 gap-0 max-w-[760px] rounded-xl border border-border bg-background shadow-2xl top-[20%] translate-y-0 [&_[data-slot=dialog-close]]:top-3 [&_[data-slot=dialog-close]]:right-3">
         <Command shouldFilter={mode === "search"} className="bg-transparent">
-          {/* Search Input Area */}
-          <div className="flex items-center gap-3 px-4 border-b border-border">
-            <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+          {/* Search Input Area - only in search mode */}
+          {mode === "search" && (
             <CommandInput
               placeholder="Search documentation..."
               value={query}
               onValueChange={setQuery}
-              className="h-12 border-0 focus:ring-0 text-sm bg-transparent placeholder:text-muted-foreground"
+              wrapperClassName="h-12 gap-2 px-3 sm:px-4 pr-12"
+              className="h-12 border-0 bg-transparent py-0 pr-2 text-sm focus:ring-0 placeholder:text-muted-foreground"
+              hideIcon
+              startAdornment={
+                query ? (
+                  <button
+                    onClick={() => setQuery("")}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Back to full search results"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                ) : undefined
+              }
             />
-            <kbd className="search-kbd hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono border text-muted-foreground">
-              esc
-            </kbd>
-          </div>
+          )}
 
           {mode === "search" ? (
             <CommandList className="max-h-[400px] overflow-y-auto p-2">
@@ -130,9 +190,9 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                   <p className="text-sm text-muted-foreground">No results found.</p>
                   <button
                     onClick={handleAskAI}
-                    className="search-ask-ai-link mt-1 text-sm font-medium flex items-center gap-1.5"
+                    className="search-ask-ai-link mt-1 text-sm font-medium inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <Sparkles className="h-3.5 w-3.5 text-current" />
                     Ask AI instead
                   </button>
                 </div>
@@ -162,13 +222,13 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                     <CommandItem
                       key={item.id}
                       value={`${item.title} ${item.description}`}
+                      onSelect={() => setQuery(item.title)}
                       className="search-result-item flex items-start gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-left"
                     >
                       <div className="flex items-center justify-center h-7 w-7 rounded-md bg-secondary text-muted-foreground shrink-0 mt-0.5">
                         {iconMap[item.icon] || <FileText className="h-4 w-4" />}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        {/* Breadcrumb path */}
                         <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
                           {item.breadcrumb.map((crumb, i) => (
                             <span key={i} className="flex items-center gap-1">
@@ -187,92 +247,109 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
               ))}
             </CommandList>
           ) : (
-            /* AI Mode */
-            <div className="p-4 max-h-[400px] overflow-y-auto">
-              {!aiResponse && !isAiTyping ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <div className="search-ai-icon-wrapper flex items-center justify-center h-12 w-12 rounded-xl">
-                    <Sparkles className="h-6 w-6 text-primary-foreground" />
-                  </div>
-                  <p className="text-sm text-muted-foreground text-center max-w-[280px]">
-                    Ask anything about the documentation and AI will help you find the answer.
-                  </p>
+            /* AI Chat Mode */
+            <div className="flex flex-col h-[400px]">
+              {/* Chat header */}
+              <div className="flex h-12 items-center gap-2 px-3 sm:px-4 pr-12 border-b border-border">
+                <button
+                  onClick={handleBackToSearch}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to search results
+                </button>
+                <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  AI Chat
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="search-ai-icon-wrapper flex items-center justify-center h-7 w-7 rounded-lg shrink-0 mt-0.5">
-                      <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+
+              {/* Chat messages area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {chatMessages.length === 0 && !isAiTyping && (
+                  <div className="flex flex-col items-center justify-center h-full gap-3">
+                    <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-secondary">
+                      <Sparkles className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
-                      {isAiTyping && (
-                        <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 rounded-sm" />
-                      )}
-                    </div>
+                    <p className="text-sm text-muted-foreground text-center max-w-[280px]">
+                      Ask anything about the documentation and AI will help you find the answer.
+                    </p>
                   </div>
-                  {!isAiTyping && aiResponse && (
-                    <button
-                      onClick={() => setMode("search")}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 ml-10"
+                )}
+
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-muted text-foreground rounded-bl-sm"
+                      }`}
                     >
-                      ← Back to search results
-                    </button>
-                  )}
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {isAiTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-xl rounded-bl-sm px-3.5 py-2.5">
+                      <span className="text-sm text-muted-foreground">Thinking ...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat input at bottom */}
+              <div className="border-t border-border px-3 py-3">
+                <div className="flex h-12 items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3">
+                  <input
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && aiInput.trim()) sendAiMessage(aiInput);
+                    }}
+                    placeholder="Ask AI a question..."
+                    className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => aiInput.trim() && sendAiMessage(aiInput)}
+                    disabled={!aiInput.trim() || isAiTyping}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground disabled:opacity-40 transition-colors"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* Footer with AI ask */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border">
-            <button
-              onClick={() => {
-                if (mode === "ai" && query) {
-                  handleAskAI();
-                } else {
-                  setMode(mode === "ai" ? "search" : "ai");
-                }
-              }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                mode === "ai"
-                  ? "search-ai-toggle-active text-primary-foreground"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Ask AI
-            </button>
-            {mode === "ai" && (
-              <div className="flex-1 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && query) handleAskAI(); }}
-                  placeholder="Ask AI a question..."
-                  className="flex-1 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-                />
-                <button
-                  onClick={() => query && handleAskAI()}
-                  disabled={!query}
-                  className="flex items-center justify-center h-7 w-7 rounded-md bg-primary text-primary-foreground disabled:opacity-40 transition-opacity"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-            {mode === "search" && (
+          {/* Footer - only in search mode */}
+          {mode === "search" && (
+            <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border">
+              <button
+                onClick={handleAskAI}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors bg-secondary text-primary hover:text-primary/80"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-current" />
+                Ask AI
+              </button>
               <div className="flex-1 flex items-center justify-end gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <CornerDownLeft className="h-3 w-3" /> select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="search-kbd px-1 py-0.5 rounded text-[10px] font-mono border">↑↓</kbd> navigate
+                  <kbd className="search-kbd px-1 py-0.5 rounded text-[10px] font-mono border">up/down</kbd> navigate
                 </span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </Command>
       </DialogContent>
     </Dialog>
