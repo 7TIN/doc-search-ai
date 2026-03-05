@@ -68,6 +68,64 @@ interface SearchCommandProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const renderInlineFormatting = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={`${part}-${index}`} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={`${part}-${index}`}>{part}</span>;
+  });
+};
+
+const renderAiMessage = (content: string) => {
+  const blocks = content.trim().split(/\n{2,}/);
+
+  return (
+    <div className="space-y-2 text-left">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split("\n").filter((line) => line.trim().length > 0);
+        const isUnorderedList = lines.every((line) => /^\s*[-*]\s+/.test(line));
+        const isOrderedList = lines.every((line) => /^\s*\d+\.\s+/.test(line));
+
+        if (isUnorderedList) {
+          return (
+            <ul key={`ul-${blockIndex}`} className="list-disc space-y-1 pl-5">
+              {lines.map((line, lineIndex) => (
+                <li key={`uli-${lineIndex}`}>
+                  {renderInlineFormatting(line.replace(/^\s*[-*]\s+/, ""))}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (isOrderedList) {
+          return (
+            <ol key={`ol-${blockIndex}`} className="list-decimal space-y-1 pl-5">
+              {lines.map((line, lineIndex) => (
+                <li key={`oli-${lineIndex}`}>
+                  {renderInlineFormatting(line.replace(/^\s*\d+\.\s+/, ""))}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+
+        return (
+          <p key={`p-${blockIndex}`} className="leading-relaxed">
+            {renderInlineFormatting(block)}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+
 const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"search" | "ai">("search");
@@ -109,7 +167,10 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
 
-    setChatMessages((prev) => [...prev, { role: "user", content: trimmedMessage }]);
+    setChatMessages((prev) => [
+      ...prev,
+      { role: "user", content: trimmedMessage },
+    ]);
     setAiInput("");
     setIsAiTyping(true);
 
@@ -149,11 +210,14 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
     setMode("search");
   }, [resetAiChat]);
 
-  const groupedResults = docsData.reduce((acc, item) => {
-    if (!acc[item.section]) acc[item.section] = [];
-    acc[item.section].push(item);
-    return acc;
-  }, {} as Record<string, typeof docsData>);
+  const groupedResults = docsData.reduce(
+    (acc, item) => {
+      if (!acc[item.section]) acc[item.section] = [];
+      acc[item.section].push(item);
+      return acc;
+    },
+    {} as Record<string, typeof docsData>,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,7 +251,9 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
               <CommandEmpty className="py-12 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <Search className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="text-sm text-muted-foreground">No results found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No results found.
+                  </p>
                   <button
                     onClick={handleAskAI}
                     className="search-ask-ai-link mt-1 text-sm font-medium inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
@@ -232,13 +298,19 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                         <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
                           {item.breadcrumb.map((crumb, i) => (
                             <span key={i} className="flex items-center gap-1">
-                              {i > 0 && <ChevronRight className="h-2.5 w-2.5" />}
+                              {i > 0 && (
+                                <ChevronRight className="h-2.5 w-2.5" />
+                              )}
                               <span>{crumb}</span>
                             </span>
                           ))}
                         </div>
-                        <p className="text-sm font-medium truncate text-left">{item.title}</p>
-                        <p className="text-xs text-muted-foreground truncate text-left">{item.description}</p>
+                        <p className="text-sm font-medium truncate text-left">
+                          {item.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate text-left">
+                          {item.description}
+                        </p>
                       </div>
                       <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-2" />
                     </CommandItem>
@@ -250,7 +322,7 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
             /* AI Chat Mode */
             <div className="flex flex-col h-[400px]">
               {/* Chat header */}
-              <div className="flex h-12 items-center gap-2 px-3 sm:px-4 pr-12 border-b border-border">
+              <div className="flex h-12 items-center gap-2 px-3 sm:px-4 border-b border-border">
                 <button
                   onClick={handleBackToSearch}
                   className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -258,7 +330,9 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Back to search results
                 </button>
-                <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+
+                {/* Spacer pushes AI Chat to the right */}
+                <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground mr-10">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />
                   AI Chat
                 </div>
@@ -272,7 +346,8 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                       <Sparkles className="h-5 w-5 text-primary" />
                     </div>
                     <p className="text-sm text-muted-foreground text-center max-w-[280px]">
-                      Ask anything about the documentation and AI will help you find the answer.
+                      Ask anything about the documentation and AI will help you
+                      find the answer.
                     </p>
                   </div>
                 )}
@@ -285,11 +360,15 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                     <div
                       className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed ${
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          ? "search-user-bubble rounded-br-sm"
                           : "bg-muted text-foreground rounded-bl-sm"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.role === "ai" ? (
+                        renderAiMessage(msg.content)
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -297,7 +376,9 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                 {isAiTyping && (
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-xl rounded-bl-sm px-3.5 py-2.5">
-                      <span className="text-sm text-muted-foreground">Thinking ...</span>
+                      <span className="text-sm text-muted-foreground">
+                        Thinking ...
+                      </span>
                     </div>
                   </div>
                 )}
@@ -312,7 +393,8 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && aiInput.trim()) sendAiMessage(aiInput);
+                      if (e.key === "Enter" && aiInput.trim())
+                        sendAiMessage(aiInput);
                     }}
                     placeholder="Ask AI a question..."
                     className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
@@ -345,7 +427,10 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                   <CornerDownLeft className="h-3 w-3" /> select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="search-kbd px-1 py-0.5 rounded text-[10px] font-mono border">up/down</kbd> navigate
+                  <kbd className="search-kbd px-1 py-0.5 rounded text-[10px] font-mono border">
+                    up/down
+                  </kbd>{" "}
+                  navigate
                 </span>
               </div>
             </div>

@@ -122,3 +122,9 @@
     @apply bg-background text-foreground;
     }
 }
+
+@layer components {
+  .search-user-bubble {
+    @apply bg-neutral-700 text-white;
+  }
+}
