@@ -9,54 +9,57 @@ import {
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { docsData, recentSearches } from "@/data/docs-data";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  Book,
-  CheckCircle,
-  ChevronRight,
-  Clock,
-  Cloud,
-  Code,
-  CornerDownLeft,
-  Database,
-  Download,
-  Edit,
-  FileText,
-  Filter,
-  GitBranch,
-  Link,
-  Lock,
-  Search,
-  Send,
-  Settings,
-  Shield,
-  Sparkles,
-  Terminal,
-  Zap,
-} from "lucide-react";
+// import {
+//   AlertTriangle,
+//   ArrowLeft,
+//   ArrowRight,
+//   Book,
+//   CheckCircle,
+//   ChevronRight,
+//   Clock,
+//   Cloud,
+//   Code,
+//   CornerDownLeft,
+//   Database,
+//   Download,
+//   Edit,
+//   FileText,
+//   Filter,
+//   GitBranch,
+//   Link,
+//   Lock,
+//   Search,
+//   Send,
+//   Settings,
+//   Shield,
+//   Sparkles,
+//   Terminal,
+//   Zap,
+// } from "lucide-react";
+import { useDocsSearch } from "@/hooks/useDocsSearch";
+import SearchResults from "./search/SearchResults";
+import { ArrowLeft, Clock, CornerDownLeft, Search, Send, Sparkles } from "lucide-react";
 
-const iconMap: Record<string, React.ReactNode> = {
-  book: <Book className="h-4 w-4" />,
-  zap: <Zap className="h-4 w-4" />,
-  download: <Download className="h-4 w-4" />,
-  settings: <Settings className="h-4 w-4" />,
-  database: <Database className="h-4 w-4" />,
-  link: <Link className="h-4 w-4" />,
-  search: <Search className="h-4 w-4" />,
-  edit: <Edit className="h-4 w-4" />,
-  filter: <Filter className="h-4 w-4" />,
-  shield: <Shield className="h-4 w-4" />,
-  lock: <Lock className="h-4 w-4" />,
-  "git-branch": <GitBranch className="h-4 w-4" />,
-  cloud: <Cloud className="h-4 w-4" />,
-  "check-circle": <CheckCircle className="h-4 w-4" />,
-  code: <Code className="h-4 w-4" />,
-  terminal: <Terminal className="h-4 w-4" />,
-  "alert-triangle": <AlertTriangle className="h-4 w-4" />,
-  "file-text": <FileText className="h-4 w-4" />,
-};
+// const iconMap: Record<string, React.ReactNode> = {
+//   book: <Book className="h-4 w-4" />,
+//   zap: <Zap className="h-4 w-4" />,
+//   download: <Download className="h-4 w-4" />,
+//   settings: <Settings className="h-4 w-4" />,
+//   database: <Database className="h-4 w-4" />,
+//   link: <Link className="h-4 w-4" />,
+//   search: <Search className="h-4 w-4" />,
+//   edit: <Edit className="h-4 w-4" />,
+//   filter: <Filter className="h-4 w-4" />,
+//   shield: <Shield className="h-4 w-4" />,
+//   lock: <Lock className="h-4 w-4" />,
+//   "git-branch": <GitBranch className="h-4 w-4" />,
+//   cloud: <Cloud className="h-4 w-4" />,
+//   "check-circle": <CheckCircle className="h-4 w-4" />,
+//   code: <Code className="h-4 w-4" />,
+//   terminal: <Terminal className="h-4 w-4" />,
+//   "alert-triangle": <AlertTriangle className="h-4 w-4" />,
+//   "file-text": <FileText className="h-4 w-4" />,
+// };
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -128,6 +131,7 @@ const renderAiMessage = (content: string) => {
 
 const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
   const [query, setQuery] = useState("");
+  const { results, loading } = useDocsSearch(query);
   const [mode, setMode] = useState<"search" | "ai">("search");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -210,14 +214,14 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
     setMode("search");
   }, [resetAiChat]);
 
-  const groupedResults = docsData.reduce(
-    (acc, item) => {
-      if (!acc[item.section]) acc[item.section] = [];
-      acc[item.section].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof docsData>,
-  );
+  // const groupedResults = docsData.reduce(
+  //   (acc, item) => {
+  //     if (!acc[item.section]) acc[item.section] = [];
+  //     acc[item.section].push(item);
+  //     return acc;
+  //   },
+  //   {} as Record<string, typeof docsData>,
+  // );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,41 +286,7 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
               )}
 
               {/* Grouped doc results */}
-              {Object.entries(groupedResults).map(([section, items]) => (
-                <CommandGroup key={section} heading={section}>
-                  {items.map((item) => (
-                    <CommandItem
-                      key={item.id}
-                      value={`${item.title} ${item.description}`}
-                      onSelect={() => setQuery(item.title)}
-                      className="search-result-item flex items-start gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-left"
-                    >
-                      <div className="flex items-center justify-center h-7 w-7 rounded-md bg-secondary text-muted-foreground shrink-0 mt-0.5">
-                        {iconMap[item.icon] || <FileText className="h-4 w-4" />}
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-0.5">
-                          {item.breadcrumb.map((crumb, i) => (
-                            <span key={i} className="flex items-center gap-1">
-                              {i > 0 && (
-                                <ChevronRight className="h-2.5 w-2.5" />
-                              )}
-                              <span>{crumb}</span>
-                            </span>
-                          ))}
-                        </div>
-                        <p className="text-sm font-medium truncate text-left">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate text-left">
-                          {item.description}
-                        </p>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-2" />
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ))}
+            <SearchResults results={results} loading={loading} />
             </CommandList>
           ) : (
             /* AI Chat Mode */
