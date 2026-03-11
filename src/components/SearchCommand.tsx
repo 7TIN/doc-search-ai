@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
+  // CommandGroup,
   CommandInput,
-  CommandItem,
+  // CommandItem,
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { docsData, recentSearches } from "@/data/docs-data";
+// import { docsData, recentSearches } from "@/data/docs-data";
 // import {
 //   AlertTriangle,
 //   ArrowLeft,
@@ -38,7 +38,7 @@ import { docsData, recentSearches } from "@/data/docs-data";
 // } from "lucide-react";
 import { useDocsSearch } from "@/hooks/useDocsSearch";
 import SearchResults from "./search/SearchResults";
-import { ArrowLeft, Clock, CornerDownLeft, Search, Send, Sparkles } from "lucide-react";
+import { ArrowLeft, CornerDownLeft, Search, Send, Sparkles } from "lucide-react";
 
 // const iconMap: Record<string, React.ReactNode> = {
 //   book: <Book className="h-4 w-4" />,
@@ -269,7 +269,7 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
               </CommandEmpty>
 
               {/* Recent searches when no query */}
-              {!query && (
+              {/* {!query && (
                 <CommandGroup heading="Recent">
                   {recentSearches.map((item) => (
                     <CommandItem
@@ -283,7 +283,7 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                     </CommandItem>
                   ))}
                 </CommandGroup>
-              )}
+              )} */}
 
               {/* Grouped doc results */}
             <SearchResults results={results} loading={loading} />
