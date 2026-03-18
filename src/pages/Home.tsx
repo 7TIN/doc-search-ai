@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Book, Code, FileText, Sparkles } from "lucide-react";
 import SearchCommand from "@/components/SearchCommand";
 import SearchTrigger from "@/components/SearchTrigger";
+import { useMountEffect } from "@/hooks/useMountEffect";
 
 const Home = () => {
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -16,7 +17,7 @@ const Home = () => {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

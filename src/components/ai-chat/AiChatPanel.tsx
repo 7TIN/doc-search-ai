@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, CornerDownLeft, Send, Sparkles } from "lucide-react";
 import { useAiChat } from "@/hooks/useAiChat";
+import { useMountEffect } from "@/hooks/useMountEffect";
 import { cn } from "@/lib/utils";
 import AiMessageBubble from "./AiMessageBubble";
 
@@ -25,13 +26,11 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isResponding]);
 
-  useEffect(() => {
-    if (!initialQuestion?.trim()) {
-      return;
+  useMountEffect(() => {
+    if (initialQuestion?.trim()) {
+      void sendMessage(initialQuestion);
     }
-
-    void sendMessage(initialQuestion);
-  }, [initialQuestion, sendMessage]);
+  });
 
   const handleSend = (value: string) => {
     const query = value.trim();
@@ -64,7 +63,7 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
           Back to search
         </button>
 
-        <div className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground mr-10">
+        <div className="mr-10 ml-auto inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
           <Sparkles className="h-3 w-3 text-primary" />
           AI Chat
         </div>
