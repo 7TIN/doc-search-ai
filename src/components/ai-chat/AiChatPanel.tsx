@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, CornerDownLeft, Send, Sparkles } from "lucide-react";
 import { useAiChat } from "@/hooks/useAiChat";
@@ -61,7 +61,7 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
   };
 
   return (
-    <div className="flex h-[430px] flex-col bg-gradient-to-b from-background via-background to-secondary/20">
+    <div className="flex h-[500px] flex-col bg-gradient-to-b from-background via-background to-secondary/20 md:h-[540px]">
       <div className="flex h-12 items-center gap-2 border-b border-border/70 px-3 sm:px-4">
         <button
           onClick={onBack}
@@ -77,7 +77,7 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 md:px-5">
         {messages.length === 0 && !isResponding && (
           <div className="mx-auto flex h-full w-full max-w-md flex-col items-center justify-center gap-3 text-center">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-secondary/60">
@@ -122,7 +122,7 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
         <div ref={chatEndRef} />
       </div>
 
-      <div className="border-t border-border/70 px-3 py-3">
+      <div className="border-t border-border/70 px-3 py-3 md:px-4">
         {error && (
           <p className="mb-2 rounded-md border border-destructive/20 bg-destructive/5 px-2.5 py-1.5 text-xs text-destructive">
             {error}
