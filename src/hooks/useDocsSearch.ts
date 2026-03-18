@@ -1,59 +1,53 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { api } from "@/lib/api";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import type { DocsSearchResponse } from "@/types/search";
 
-interface SearchResult {
-  document: {
-    title: string;
-    heading: string;
-    content: string;
-    url: string;
-  };
-  highlight?: {
-    heading?: { snippet: string };
-    content?: { snippet: string };
-  };
-}
+type ApiError = {
+  error?: string;
+};
 
 export function useDocsSearch(query: string) {
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const normalizedQuery = query.trim();
+  const debouncedQuery = useDebouncedValue(normalizedQuery, 250);
+  const hasQuery = normalizedQuery.length > 0;
+  const isDebouncing = hasQuery && normalizedQuery !== debouncedQuery;
 
-  useEffect(() => {
-    if (!query) {
-      setResults([]);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const search = async () => {
-      try {
-        setLoading(true);
-
-        const res = await api.get("/search", {
-          params: {
-            q: query,
-          },
-          signal: controller.signal,
-        });
-
-        setResults(res.data.results || []);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          console.error("Search failed", error);
+  const searchQuery = useQuery({
+    queryKey: ["docs-search", debouncedQuery],
+    queryFn: async ({ signal }) => {
+      const response = await api.post<DocsSearchResponse>(
+        "/search",
+        {
+          query: debouncedQuery,
+          page: 1,
+          perPage: 10,
+        },
+        {
+          signal,
         }
-      } finally {
-        setLoading(false);
-      }
-    };
+      );
 
-    const debounce = setTimeout(search, 250);
+      return response.data;
+    },
+    enabled: debouncedQuery.length > 0,
+    staleTime: 30_000,
+  });
 
-    return () => {
-      clearTimeout(debounce);
-      controller.abort();
-    };
-  }, [query]);
+  const error = searchQuery.error
+    ? axios.isAxiosError<ApiError>(searchQuery.error)
+      ? searchQuery.error.response?.data?.error ?? "Search failed"
+      : "Search failed"
+    : null;
 
-  return { results, loading };
+  const loading =
+    hasQuery && (isDebouncing || searchQuery.isPending || searchQuery.isFetching);
+
+  return {
+    results: searchQuery.data?.results ?? [],
+    loading,
+    error,
+    hasQuery,
+  };
 }
