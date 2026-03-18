@@ -25,6 +25,19 @@ export interface AiAnswerSource {
   heading?: string;
   keywords?: string[];
   score?: number;
+  rankScore?: number;
+}
+
+export interface AiAnswerContext {
+  id: number;
+  url?: string;
+  title?: string;
+  heading?: string;
+  content?: string;
+  code?: string;
+  keywords?: string[];
+  score?: number;
+  rankScore?: number;
 }
 
 export interface AiAnswerResponse {
@@ -33,6 +46,7 @@ export interface AiAnswerResponse {
   provider?: string;
   model?: string;
   sources: AiAnswerSource[];
+  context?: AiAnswerContext[];
 }
 
 export type ChatTurn = {
@@ -46,4 +60,12 @@ export interface AiChatMessage extends ChatTurn {
   sources?: AiAnswerSource[];
   provider?: string;
   model?: string;
+}
+
+export interface AiAnswerRequestOptions {
+  limit: number;
+  scoreThreshold: number;
+  temperature: number;
+  maxTokens: number;
+  includeContext: boolean;
 }

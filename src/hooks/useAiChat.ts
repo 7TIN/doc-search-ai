@@ -4,6 +4,7 @@ import axios from "axios";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { api } from "@/lib/api";
 import type {
+  AiAnswerRequestOptions,
   AiAnswerResponse,
   AiChatMessage,
   ChatTurn,
@@ -13,8 +14,15 @@ type ApiError = {
   error?: string;
 };
 
+type PartialRequestOptions = Partial<AiAnswerRequestOptions>;
+
 const fallbackAssistantError =
   "I hit an issue while generating an answer. Please try again.";
+
+const defaultRequestOptions: PartialRequestOptions = {
+  limit: 5,
+  includeContext: false,
+};
 
 function createMessageId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -33,7 +41,39 @@ function toHistory(messages: AiChatMessage[]): ChatTurn[] {
     .filter((turn) => turn.content.length > 0);
 }
 
-export function useAiChat() {
+function pickRequestOptions(
+  options?: PartialRequestOptions
+): PartialRequestOptions {
+  if (!options) {
+    return {};
+  }
+
+  const payload: PartialRequestOptions = {};
+
+  if (typeof options.limit === "number" && Number.isInteger(options.limit) && options.limit > 0) {
+    payload.limit = options.limit;
+  }
+
+  if (typeof options.scoreThreshold === "number" && Number.isFinite(options.scoreThreshold)) {
+    payload.scoreThreshold = options.scoreThreshold;
+  }
+
+  if (typeof options.temperature === "number" && Number.isFinite(options.temperature)) {
+    payload.temperature = options.temperature;
+  }
+
+  if (typeof options.maxTokens === "number" && Number.isInteger(options.maxTokens) && options.maxTokens > 0) {
+    payload.maxTokens = options.maxTokens;
+  }
+
+  if (typeof options.includeContext === "boolean") {
+    payload.includeContext = options.includeContext;
+  }
+
+  return payload;
+}
+
+export function useAiChat(defaultOptions?: PartialRequestOptions) {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +81,10 @@ export function useAiChat() {
   const abortRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<AiChatMessage[]>([]);
   const isRespondingRef = useRef(false);
+  const defaultOptionsRef = useRef<PartialRequestOptions>({
+    ...defaultRequestOptions,
+    ...pickRequestOptions(defaultOptions),
+  });
 
   const setMessagesAndRef = useCallback(
     (next: SetStateAction<AiChatMessage[]>) => {
@@ -65,7 +109,7 @@ export function useAiChat() {
   });
 
   const sendMessage = useCallback(
-    async (rawMessage: string) => {
+    async (rawMessage: string, options?: PartialRequestOptions) => {
       const query = rawMessage.trim();
 
       if (!query || isRespondingRef.current) {
@@ -80,6 +124,11 @@ export function useAiChat() {
       };
 
       const history = toHistory(messagesRef.current);
+      const requestOptions = {
+        ...defaultOptionsRef.current,
+        ...pickRequestOptions(options),
+      };
+
       setError(null);
       setMessagesAndRef((previous) => [...previous, userMessage]);
       setIsResponding(true);
@@ -95,6 +144,7 @@ export function useAiChat() {
           {
             query,
             history,
+            ...requestOptions,
           },
           {
             signal: controller.signal,

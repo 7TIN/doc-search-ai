@@ -17,9 +17,17 @@ const starterPrompts = [
   "Show me an API request example.",
 ];
 
+const aiRequestOptions = {
+  limit: 5,
+  includeContext: false,
+  temperature: 0.2,
+  maxTokens: 1200,
+} as const;
+
 const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
   const [input, setInput] = useState("");
-  const { messages, isResponding, error, sendMessage, clearError } = useAiChat();
+  const { messages, isResponding, error, sendMessage, clearError } =
+    useAiChat(aiRequestOptions);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
