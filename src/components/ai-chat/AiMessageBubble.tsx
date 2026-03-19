@@ -30,7 +30,7 @@ const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
             "rounded-2xl px-4 py-3 text-sm shadow-sm",
             isUser
               ? "rounded-br-sm bg-neutral-800 text-white"
-              : "rounded-bl-sm border border-border/80 bg-background text-foreground"
+              : "group relative rounded-bl-sm border border-border/80 bg-background pr-11 pb-9 text-foreground"
           )}
         >
           {isUser ? (
@@ -38,13 +38,16 @@ const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
           ) : (
             <AiMessageContent content={message.content} />
           )}
-        </div>
 
-        {!isUser && (
-          <div className="flex justify-end">
+          {!isUser && (
             <button
               onClick={onCopyResponse}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/80 bg-background text-muted-foreground transition-colors hover:text-foreground"
+              className={cn(
+                "absolute right-2 bottom-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/80 bg-background/95 text-muted-foreground shadow-sm transition-all hover:text-foreground focus-visible:opacity-100 focus-visible:pointer-events-auto",
+                copiedResponse
+                  ? "pointer-events-auto opacity-100"
+                  : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+              )}
               aria-label={copiedResponse ? "Copied" : "Copy response"}
               title={copiedResponse ? "Copied" : "Copy response"}
             >
@@ -54,8 +57,8 @@ const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
                 <Copy className="h-3.5 w-3.5" />
               )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -91,7 +94,7 @@ const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
         {!isUser && (message.provider || message.model) && (
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Sparkles className="h-3 w-3" />
-            {message.provider ?? "AI"} {message.model ? `· ${message.model}` : ""}
+            {message.provider ?? "AI"} {message.model ? `Â· ${message.model}` : ""}
           </p>
         )}
       </div>

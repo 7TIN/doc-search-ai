@@ -27,7 +27,7 @@ const Home = () => {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
               <Code className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold">Acme Docs</span>
+            <span className="text-sm font-semibold">Seabot</span>
           </div>
 
           <div className="mx-8 flex-1 max-w-sm">
