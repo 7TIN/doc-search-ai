@@ -16,8 +16,7 @@ type ApiError = {
 
 type PartialRequestOptions = Partial<AiAnswerRequestOptions>;
 
-const fallbackAssistantError =
-  "I hit an issue while generating an answer. Please try again.";
+const AI_ANSWER_DEBOUNCE_MS = 350;
 
 const defaultRequestOptions: PartialRequestOptions = {
   limit: 5,
@@ -79,12 +78,20 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
   const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const sendTimeoutRef = useRef<number | null>(null);
   const messagesRef = useRef<AiChatMessage[]>([]);
   const isRespondingRef = useRef(false);
   const defaultOptionsRef = useRef<PartialRequestOptions>({
     ...defaultRequestOptions,
     ...pickRequestOptions(defaultOptions),
   });
+
+  const clearPendingSend = useCallback(() => {
+    if (sendTimeoutRef.current !== null) {
+      window.clearTimeout(sendTimeoutRef.current);
+      sendTimeoutRef.current = null;
+    }
+  }, []);
 
   const setMessagesAndRef = useCallback(
     (next: SetStateAction<AiChatMessage[]>) => {
@@ -103,13 +110,14 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
 
   useMountEffect(() => {
     return () => {
+      clearPendingSend();
       abortRef.current?.abort();
       abortRef.current = null;
     };
   });
 
   const sendMessage = useCallback(
-    async (rawMessage: string, options?: PartialRequestOptions) => {
+    (rawMessage: string, options?: PartialRequestOptions) => {
       const query = rawMessage.trim();
 
       if (!query || isRespondingRef.current) {
@@ -135,67 +143,70 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
       isRespondingRef.current = true;
 
       const controller = new AbortController();
+      clearPendingSend();
       abortRef.current?.abort();
       abortRef.current = controller;
 
-      try {
-        const response = await api.post<AiAnswerResponse>(
-          "/ai-answer",
-          {
-            query,
-            history,
-            ...requestOptions,
-          },
-          {
-            signal: controller.signal,
+      sendTimeoutRef.current = window.setTimeout(async () => {
+        try {
+          if (controller.signal.aborted) {
+            return;
           }
-        );
 
-        const assistantMessage: AiChatMessage = {
-          id: createMessageId(),
-          role: "assistant",
-          content:
-            response.data.answer?.trim() ||
-            "I couldn't generate an answer for that yet.",
-          createdAt: Date.now(),
-          sources: response.data.sources ?? [],
-          provider: response.data.provider,
-          model: response.data.model,
-        };
+          const response = await api.post<AiAnswerResponse>(
+            "/ai-answer",
+            {
+              query,
+              history,
+              ...requestOptions,
+            },
+            {
+              signal: controller.signal,
+              // AI answers can legitimately take longer than 10s.
+              timeout: 0,
+            }
+          );
 
-        setMessagesAndRef((previous) => [...previous, assistantMessage]);
-      } catch (requestError) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        const errorMessage = axios.isAxiosError<ApiError>(requestError)
-          ? requestError.response?.data?.error ?? requestError.message
-          : "AI answer failed";
-
-        setError(errorMessage);
-        setMessagesAndRef((previous) => [
-          ...previous,
-          {
+          const assistantMessage: AiChatMessage = {
             id: createMessageId(),
             role: "assistant",
-            content: fallbackAssistantError,
+            content:
+              response.data.answer?.trim() ||
+              "I couldn't generate an answer for that yet.",
             createdAt: Date.now(),
-          },
-        ]);
-      } finally {
-        if (abortRef.current === controller) {
-          abortRef.current = null;
-        }
+            sources: response.data.sources ?? [],
+            provider: response.data.provider,
+            model: response.data.model,
+          };
 
-        setIsResponding(false);
-        isRespondingRef.current = false;
-      }
+          setMessagesAndRef((previous) => [...previous, assistantMessage]);
+        } catch (requestError) {
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          const errorMessage = axios.isAxiosError<ApiError>(requestError)
+            ? requestError.response?.data?.error ?? requestError.message
+            : "AI answer failed";
+
+          setError(errorMessage);
+        } finally {
+          sendTimeoutRef.current = null;
+
+          if (abortRef.current === controller) {
+            abortRef.current = null;
+          }
+
+          setIsResponding(false);
+          isRespondingRef.current = false;
+        }
+      }, AI_ANSWER_DEBOUNCE_MS);
     },
-    [setMessagesAndRef]
+    [clearPendingSend, setMessagesAndRef]
   );
 
   const resetChat = useCallback(() => {
+    clearPendingSend();
     abortRef.current?.abort();
     abortRef.current = null;
     messagesRef.current = [];
@@ -204,7 +215,7 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
     setMessages([]);
     setError(null);
     setIsResponding(false);
-  }, []);
+  }, [clearPendingSend]);
 
   const clearError = useCallback(() => {
     setError(null);

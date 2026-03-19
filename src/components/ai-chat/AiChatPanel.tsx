@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, CornerDownLeft, Send, Sparkles } from "lucide-react";
 import { useAiChat } from "@/hooks/useAiChat";
@@ -61,7 +61,7 @@ const AiChatPanel = ({ onBack, initialQuestion }: AiChatPanelProps) => {
   };
 
   return (
-    <div className="flex h-[500px] flex-col bg-gradient-to-b from-background via-background to-secondary/20 md:h-[540px]">
+    <div className="flex h-[560px] flex-col bg-gradient-to-b from-background via-background to-secondary/20 md:h-[620px]">
       <div className="flex h-12 items-center gap-2 border-b border-border/70 px-3 sm:px-4">
         <button
           onClick={onBack}

@@ -117,8 +117,41 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.708 0 0) transparent;
     }
   body {
     @apply bg-background text-foreground;
     }
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.7);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.9);
+}
+
+.ai-code-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 113, 122, 0.9) #18181b;
+}
+
+.ai-code-scroll::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+.ai-code-scroll::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.9);
 }

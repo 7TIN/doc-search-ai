@@ -8,9 +8,14 @@ type ApiError = {
   error?: string;
 };
 
+const DOCS_SEARCH_DEBOUNCE_MS = 400;
+
 export function useDocsSearch(query: string) {
   const normalizedQuery = query.trim();
-  const debouncedQuery = useDebouncedValue(normalizedQuery, 250);
+  const debouncedQuery = useDebouncedValue(
+    normalizedQuery,
+    DOCS_SEARCH_DEBOUNCE_MS
+  );
   const hasQuery = normalizedQuery.length > 0;
   const isDebouncing = hasQuery && normalizedQuery !== debouncedQuery;
 

@@ -1,4 +1,5 @@
-﻿import { Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Check, Copy, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AiChatMessage } from "@/types/search";
 import AiMessageContent from "./AiMessageContent";
@@ -9,6 +10,17 @@ interface AiMessageBubbleProps {
 
 const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
   const isUser = message.role === "user";
+  const [copiedResponse, setCopiedResponse] = useState(false);
+
+  const onCopyResponse = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopiedResponse(true);
+      window.setTimeout(() => setCopiedResponse(false), 1200);
+    } catch {
+      setCopiedResponse(false);
+    }
+  };
 
   return (
     <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
@@ -27,6 +39,23 @@ const AiMessageBubble = ({ message }: AiMessageBubbleProps) => {
             <AiMessageContent content={message.content} />
           )}
         </div>
+
+        {!isUser && (
+          <div className="flex justify-end">
+            <button
+              onClick={onCopyResponse}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border/80 bg-background text-muted-foreground transition-colors hover:text-foreground"
+              aria-label={copiedResponse ? "Copied" : "Copy response"}
+              title={copiedResponse ? "Copied" : "Copy response"}
+            >
+              {copiedResponse ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        )}
 
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">

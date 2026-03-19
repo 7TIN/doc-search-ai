@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 type TextBlock =
   | { type: "heading"; level: number; text: string }
@@ -14,6 +14,8 @@ interface AiMessageContentProps {
 
 const inlineCitationPattern = /\s*\[(\d+(?:\s*,\s*\d+)*)\]/g;
 const sourceLinePattern = /^\s*\[\d+\]\s+/;
+const citationCommentPattern = /\s*\/\/\s*(?:\[(?:\d+(?:\s*,\s*\d+)*)\]\s*,?\s*)+$/;
+
 const languageAliases = new Set([
   "bash",
   "sh",
@@ -32,6 +34,7 @@ const languageAliases = new Set([
   "yml",
   "sql",
 ]);
+
 const shellLanguages = new Set([
   "bash",
   "sh",
@@ -43,7 +46,18 @@ const shellLanguages = new Set([
 ]);
 
 function cleanInlineText(text: string) {
-  return text.replace(inlineCitationPattern, "").replace(/\s{2,}/g, " ").trimEnd();
+  return text
+    .replace(inlineCitationPattern, "")
+    .replace(/\s{2,}/g, " ")
+    .trimEnd();
+}
+
+function stripCitationCommentFromCodeLine(line: string) {
+  return line.replace(citationCommentPattern, "").trimEnd();
+}
+
+function isLanguageLine(line: string) {
+  return languageAliases.has(line.trim().toLowerCase());
 }
 
 function normalizeCode(code: string, language?: string) {
@@ -51,7 +65,8 @@ function normalizeCode(code: string, language?: string) {
   let lines = code
     .replace(/\r\n/g, "\n")
     .replace(/\t/g, "  ")
-    .split("\n");
+    .split("\n")
+    .map(stripCitationCommentFromCodeLine);
 
   while (lines.length > 0 && lines[0].trim() === "") {
     lines.shift();
@@ -62,8 +77,7 @@ function normalizeCode(code: string, language?: string) {
   }
 
   if (shellLanguages.has(normalizedLanguage ?? "")) {
-    lines = lines.map((line) => line.trimStart());
-    return lines.join("\n");
+    return lines.map((line) => line.trimStart()).join("\n");
   }
 
   const nonEmpty = lines.filter((line) => line.trim().length > 0);
@@ -79,15 +93,11 @@ function normalizeCode(code: string, language?: string) {
 }
 
 function tryParsePseudoCodeBlock(lines: string[]): ContentBlock | null {
-  if (lines.length < 2) {
+  if (!lines.length || !isLanguageLine(lines[0])) {
     return null;
   }
 
   const language = lines[0].trim().toLowerCase();
-  if (!languageAliases.has(language)) {
-    return null;
-  }
-
   let startIndex = 1;
 
   while (startIndex < lines.length && lines[startIndex].trim() === "") {
@@ -99,16 +109,11 @@ function tryParsePseudoCodeBlock(lines: string[]): ContentBlock | null {
   }
 
   const code = normalizeCode(lines.slice(startIndex).join("\n"), language);
-
   if (!code.trim()) {
     return null;
   }
 
-  return {
-    type: "code",
-    language,
-    code,
-  };
+  return { type: "code", language, code };
 }
 
 function parseTextChunk(chunk: string): ContentBlock[] {
@@ -122,9 +127,19 @@ function parseTextChunk(chunk: string): ContentBlock[] {
     return [];
   }
 
-  const pseudoCode = tryParsePseudoCodeBlock(lines);
-  if (pseudoCode) {
-    return [pseudoCode];
+  const pseudoStartIndex = lines.findIndex((line) => isLanguageLine(line));
+
+  if (pseudoStartIndex > 0) {
+    const before = lines.slice(0, pseudoStartIndex).join("\n");
+    const after = lines.slice(pseudoStartIndex).join("\n");
+    return [...parseTextChunk(before), ...parseTextChunk(after)];
+  }
+
+  if (pseudoStartIndex === 0) {
+    const pseudoCode = tryParsePseudoCodeBlock(lines);
+    if (pseudoCode) {
+      return [pseudoCode];
+    }
   }
 
   if (lines.length === 1) {
@@ -144,7 +159,9 @@ function parseTextChunk(chunk: string): ContentBlock[] {
     return [
       {
         type: "ordered-list",
-        items: lines.map((line) => cleanInlineText(line.replace(/^\s*\d+[.)]\s+/, ""))),
+        items: lines.map((line) =>
+          cleanInlineText(line.replace(/^\s*\d+[.)]\s+/, ""))
+        ),
       },
     ];
   }
@@ -192,31 +209,67 @@ function parseTextBlocks(raw: string): ContentBlock[] {
 function parseBlocks(content: string): ContentBlock[] {
   const normalized = content.replace(/\r\n/g, "\n");
   const blocks: ContentBlock[] = [];
-  const fenceRegex = /```([a-zA-Z0-9_+-]+)?\s*([\s\S]*?)```/g;
-  let lastIndex = 0;
+  let cursor = 0;
 
-  for (const match of normalized.matchAll(fenceRegex)) {
-    const start = match.index ?? 0;
-    const before = normalized.slice(lastIndex, start);
+  while (cursor < normalized.length) {
+    const openIndex = normalized.indexOf("```", cursor);
 
-    blocks.push(...parseTextBlocks(before));
+    if (openIndex === -1) {
+      blocks.push(...parseTextBlocks(normalized.slice(cursor)));
+      break;
+    }
+
+    blocks.push(...parseTextBlocks(normalized.slice(cursor, openIndex)));
+
+    const openSlice = normalized.slice(openIndex);
+    const openMatch = openSlice.match(/^```([a-zA-Z0-9_+-]+)?\s*\n?/);
+
+    if (!openMatch) {
+      cursor = openIndex + 3;
+      continue;
+    }
+
+    const language = openMatch[1]?.toLowerCase();
+    const codeStart = openIndex + openMatch[0].length;
+    const closeIndex = normalized.indexOf("```", codeStart);
+
+    if (closeIndex === -1) {
+      blocks.push({
+        type: "code",
+        language,
+        code: normalizeCode(normalized.slice(codeStart), language),
+      });
+      cursor = normalized.length;
+      continue;
+    }
+
     blocks.push({
       type: "code",
-      language: match[1]?.toLowerCase(),
-      code: normalizeCode(match[2] ?? "", match[1]),
+      language,
+      code: normalizeCode(normalized.slice(codeStart, closeIndex), language),
     });
 
-    lastIndex = start + match[0].length;
+    cursor = closeIndex + 3;
   }
 
-  blocks.push(...parseTextBlocks(normalized.slice(lastIndex)));
+  const cleanedBlocks = blocks.filter((block) => {
+    if (block.type === "paragraph" || block.type === "heading") {
+      return block.text.trim().length > 0;
+    }
 
-  if (blocks.length > 0) {
-    return blocks;
+    if (block.type === "code") {
+      return block.code.trim().length > 0;
+    }
+
+    return block.items.length > 0;
+  });
+
+  if (cleanedBlocks.length > 0) {
+    return cleanedBlocks;
   }
 
-  const cleaned = cleanInlineText(content.trim());
-  return cleaned ? [{ type: "paragraph", text: cleaned }] : [];
+  const fallback = cleanInlineText(content.trim());
+  return fallback ? [{ type: "paragraph", text: fallback }] : [];
 }
 
 function renderInlineFormatting(text: string) {
@@ -294,7 +347,7 @@ const AiCodeBlock = ({
         </button>
       </div>
 
-      <pre className="max-h-80 overflow-auto p-3 text-[12px] leading-relaxed">
+      <pre className="ai-code-scroll max-h-80 overflow-auto p-3 text-[12px] leading-relaxed">
         <code className="font-mono">{cleanedCode}</code>
       </pre>
     </div>

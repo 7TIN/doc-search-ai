@@ -58,7 +58,7 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="search-dialog-content top-[14%] w-[min(96vw,940px)] max-w-[940px] translate-y-0 gap-0 overflow-hidden rounded-2xl border border-border/80 bg-background p-0 shadow-2xl [&_[data-slot=dialog-close]]:right-3 [&_[data-slot=dialog-close]]:top-3">
+      <DialogContent className="search-dialog-content top-[10%] w-[min(96vw,1020px)] max-w-255 translate-y-0 gap-0 overflow-hidden rounded-2xl border border-border/80 bg-background p-0 shadow-2xl [&_[data-slot=dialog-close]]:right-3 [&_[data-slot=dialog-close]]:top-3">
         <Command shouldFilter={false} className="bg-transparent">
           {mode === "search" ? (
             <>
@@ -82,9 +82,9 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                 }
               />
 
-              <CommandList className="max-h-[500px] overflow-y-auto p-2 md:max-h-[540px]">
+              <CommandList className="max-h-140 overflow-y-auto p-2 md:max-h-155">
                 {showHint && (
-                  <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 text-center">
+                  <div className="flex min-h-80 flex-col items-center justify-center gap-2 text-center">
                     <Search className="h-8 w-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">
                       Type to search across documentation.
@@ -93,19 +93,19 @@ const SearchCommand = ({ open, onOpenChange }: SearchCommandProps) => {
                 )}
 
                 {loading && (
-                  <div className="flex min-h-[280px] items-center justify-center">
+                  <div className="flex min-h-80 items-center justify-center">
                     <p className="text-sm text-muted-foreground">Searching...</p>
                   </div>
                 )}
 
                 {showError && (
-                  <div className="flex min-h-[280px] items-center justify-center px-4 text-center">
+                  <div className="flex min-h-80 items-center justify-center px-4 text-center">
                     <p className="text-sm text-destructive">{error}</p>
                   </div>
                 )}
 
                 {showNoResults && (
-                  <div className="flex min-h-[280px] flex-col items-center justify-center gap-2 text-center">
+                  <div className="flex min-h-80 flex-col items-center justify-center gap-2 text-center">
                     <Search className="h-8 w-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">No results found.</p>
                     <button
