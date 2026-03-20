@@ -49,19 +49,33 @@ function pickRequestOptions(
 
   const payload: PartialRequestOptions = {};
 
-  if (typeof options.limit === "number" && Number.isInteger(options.limit) && options.limit > 0) {
+  if (
+    typeof options.limit === "number" &&
+    Number.isInteger(options.limit) &&
+    options.limit > 0
+  ) {
     payload.limit = options.limit;
   }
 
-  if (typeof options.scoreThreshold === "number" && Number.isFinite(options.scoreThreshold)) {
+  if (
+    typeof options.scoreThreshold === "number" &&
+    Number.isFinite(options.scoreThreshold)
+  ) {
     payload.scoreThreshold = options.scoreThreshold;
   }
 
-  if (typeof options.temperature === "number" && Number.isFinite(options.temperature)) {
+  if (
+    typeof options.temperature === "number" &&
+    Number.isFinite(options.temperature)
+  ) {
     payload.temperature = options.temperature;
   }
 
-  if (typeof options.maxTokens === "number" && Number.isInteger(options.maxTokens) && options.maxTokens > 0) {
+  if (
+    typeof options.maxTokens === "number" &&
+    Number.isInteger(options.maxTokens) &&
+    options.maxTokens > 0
+  ) {
     payload.maxTokens = options.maxTokens;
   }
 
@@ -76,11 +90,13 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [isResponding, setIsResponding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const sendTimeoutRef = useRef<number | null>(null);
   const messagesRef = useRef<AiChatMessage[]>([]);
   const isRespondingRef = useRef(false);
+  const conversationIdRef = useRef<string | null>(null);
   const defaultOptionsRef = useRef<PartialRequestOptions>({
     ...defaultRequestOptions,
     ...pickRequestOptions(defaultOptions),
@@ -91,6 +107,11 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
       window.clearTimeout(sendTimeoutRef.current);
       sendTimeoutRef.current = null;
     }
+  }, []);
+
+  const setConversationIdAndRef = useCallback((next: string | null) => {
+    conversationIdRef.current = next;
+    setConversationId(next);
   }, []);
 
   const setMessagesAndRef = useCallback(
@@ -136,6 +157,7 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
         ...defaultOptionsRef.current,
         ...pickRequestOptions(options),
       };
+      const activeConversationId = conversationIdRef.current;
 
       setError(null);
       setMessagesAndRef((previous) => [...previous, userMessage]);
@@ -159,6 +181,9 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
               query,
               history,
               ...requestOptions,
+              ...(activeConversationId
+                ? { conversationId: activeConversationId }
+                : {}),
             },
             {
               signal: controller.signal,
@@ -166,6 +191,15 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
               timeout: 0,
             }
           );
+
+          const nextConversationId =
+            typeof response.data.conversationId === "string"
+              ? response.data.conversationId.trim()
+              : "";
+
+          if (nextConversationId && nextConversationId !== conversationIdRef.current) {
+            setConversationIdAndRef(nextConversationId);
+          }
 
           const assistantMessage: AiChatMessage = {
             id: createMessageId(),
@@ -202,7 +236,7 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
         }
       }, AI_ANSWER_DEBOUNCE_MS);
     },
-    [clearPendingSend, setMessagesAndRef]
+    [clearPendingSend, setConversationIdAndRef, setMessagesAndRef]
   );
 
   const resetChat = useCallback(() => {
@@ -211,10 +245,12 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
     abortRef.current = null;
     messagesRef.current = [];
     isRespondingRef.current = false;
+    conversationIdRef.current = null;
 
     setMessages([]);
     setError(null);
     setIsResponding(false);
+    setConversationId(null);
   }, [clearPendingSend]);
 
   const clearError = useCallback(() => {
@@ -225,6 +261,7 @@ export function useAiChat(defaultOptions?: PartialRequestOptions) {
     messages,
     isResponding,
     error,
+    conversationId,
     sendMessage,
     resetChat,
     clearError,

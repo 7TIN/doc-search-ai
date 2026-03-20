@@ -43,6 +43,7 @@ export interface AiAnswerContext {
 export interface AiAnswerResponse {
   query: string;
   answer: string;
+  conversationId?: string;
   provider?: string;
   model?: string;
   sources: AiAnswerSource[];
